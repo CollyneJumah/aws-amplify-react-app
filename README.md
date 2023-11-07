@@ -16,3 +16,6 @@ Follow the steps by entering project name, selecting authentication method.
 
 ### Add GraphQL API
 ### Add Authentication
+
+
+- [Guid](https://catalog.us-east-1.prod.workshops.aws/workshops/9586a55a-1f61-456c-ace9-b24f505d44a4/en-US/00-intro)
