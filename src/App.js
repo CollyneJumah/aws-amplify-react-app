@@ -1,50 +1,100 @@
-// src/App.js
+//App.js
+
 import React, { useState, useEffect } from "react";
-// import API from Amplify library
-import { API,Auth } from "aws-amplify";
-// import query definition
-import { listTodos } from "./graphql/queries";
-// src/App.js, import the withAuthenticator component and associated CSS
-import { withAuthenticator } from "@aws-amplify/ui-react";
-import "@aws-amplify/ui-react/styles.css";
+import {
+  HashRouter,
+  Switch,
+  Route
+} from "react-router-dom";
+import { withAuthenticator } from '@aws-amplify/ui-react';
+import { css } from '@emotion/css';
+import { API, Storage, Auth } from 'aws-amplify';
+import '@aws-amplify/ui-react/styles.css';
+import { listTodos } from './graphql/queries';
 
-function App({signOut, user}) {
-  const [posts, setPosts] = useState([]);
+import Posts from './Posts';
+import Post from './Post';
+import Header from './Header';
+import CreatePost from './CreatePost';
+import Button from './Button';
+
+function Router({user, signOut}) {
+
+  /* create a couple of pieces of initial state */
+  const [showOverlay, updateOverlayVisibility] = useState(false);
+  const [posts, updatePosts] = useState([]);
+  const [myPosts, updateMyPosts] = useState([]);
+
+
+  /* fetch posts when component loads */
   useEffect(() => {
-    fetchPosts();
-    checkUser();
+      fetchPosts();
   }, []);
-  async function fetchPosts() {
-    try {
-      const postData = await API.graphql({ query: listTodos });
-      setPosts(postData.data.listTodos.items);
-    } catch (err) {
-      console.log({ err });
-    }
-  }
-  //define the checkUser function after the existing fetchPosts() function
-  async function checkUser(){
-    const user = await Auth.currentAuthenticatedUser();
-    console.log("user:", user);
-    console.log("user attributes: ", user.attributes);
-  }
-  return (
-    <div>
-      <h1>Hello World DroidconKE 2023</h1>
-      {posts.map((post) => (
-        <div key={post.id}>
-          <h3>{post.name}</h3>
-          <p>{post.location}</p>
-          <p>{post.description}</p>
-        </div>
-      ))}
 
-      <div>
-        <button style={{padding:"5px",backgroundColor:"#000",color:"white"}} onClick={signOut}>sign out</button>
-      </div>
-    </div>
+  async function fetchPosts() {
+
+    /* query the API, ask for 100 items */
+    let postData = await API.graphql({ query: listTodos, variables: { limit: 100 }});
+    let postsArray = postData.data.listTodos.items;
+
+    /* map over the image keys in the posts array, get signed image URLs for each image */
+    postsArray = await Promise.all(postsArray.map(async post => {
+      const imageKey = await Storage.get(post.image);
+      post.image = imageKey;
+      return post;
+    }));
+
+    /* update the posts array in the local state */
+    setPostState(postsArray);
+  }
+  
+  async function setPostState(postsArray) {
+    const user = await Auth.currentAuthenticatedUser();
+    const myPostData = postsArray.filter((p) => p.owner === user.username);
+    updateMyPosts(myPostData);
+    updatePosts(postsArray);    
+  }
+
+
+  return (
+    <>
+      <HashRouter>
+          <div className={contentStyle}>
+            <Header />
+            <hr className={dividerStyle} />
+            <Button title="New Post" onClick={() => updateOverlayVisibility(true)} />
+            <Switch>
+              <Route exact path="/" >
+                <Posts posts={posts} />
+              </Route>
+              <Route path="/post/:id" >
+                <Post />
+              </Route>
+              <Route exact path="/myposts">
+                <Posts posts={myPosts} />
+              </Route>
+            </Switch>
+          </div>
+          <button onClick={signOut}>Sign out</button>
+        </HashRouter>
+        { showOverlay && (
+          <CreatePost
+            updateOverlayVisibility={updateOverlayVisibility}
+            updatePosts={setPostState}
+            posts={posts}
+          />
+        )}
+    </>
   );
 }
 
-export default withAuthenticator(App);
+const dividerStyle = css`
+  margin-top: 15px;
+`
 
+const contentStyle = css`
+  min-height: calc(100vh - 45px);
+  padding: 0px 40px;
+`
+
+export default withAuthenticator(Router);

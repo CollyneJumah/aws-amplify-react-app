@@ -17,6 +17,9 @@
       },
       "auth": {
         "postagramdd3eae11": {}
+      },
+      "storage": {
+        "postagrambucket": {}
       }
     }
   }
