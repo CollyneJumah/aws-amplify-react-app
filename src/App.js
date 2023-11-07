@@ -29,7 +29,7 @@ function Router({user, signOut}) {
   /* fetch posts when component loads */
   useEffect(() => {
       fetchPosts();
-  }, []);
+  });
 
   async function fetchPosts() {
 
